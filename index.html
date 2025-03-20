@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>3D Seascape - Safari Compatible</title>
+    <title>3D Seascape - iOS Touch Compatible</title>
     <style>
         * {
             margin: 0;
@@ -29,17 +29,27 @@
             height: 100%;
             touch-action: none; /* Prevent default touch actions */
         }
+        /* iOS-specific CSS */
+        @supports (-webkit-touch-callout: none) {
+            body {
+                height: -webkit-fill-available;
+            }
+        }
     </style>
 </head>
 <body>
     <script>
-        // Modified for Safari compatibility
+        // Modified for Safari and iOS touch compatibility
         let canvas, gl;
         let program;
         let startTime = Date.now();
         let mouse = { x: 0, y: 0 };
         let splashes = []; // Array to hold multiple splashes
         const MAX_SPLASHES = 10; // Reduced for better performance on Safari
+        
+        // Flag to track if we're on iOS
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         
         // Initialize WebGL
         window.onload = function() {
@@ -126,6 +136,7 @@
             document.body.addEventListener('click', unlockAudio, false);
             
             // Touch events with proper passive settings
+            // For iOS, we need to make sure preventDefault is called correctly
             canvas.addEventListener('touchstart', handleTouchStart, {passive: false});
             canvas.addEventListener('touchmove', handleTouchMove, {passive: false});
             canvas.addEventListener('touchend', handleTouchEnd, {passive: false});
@@ -139,6 +150,15 @@
             window.addEventListener('load', function() {
                 // Force a resize after everything loads
                 setTimeout(resize, 100);
+                
+                // For iOS, force an initial touch event processing
+                if (isIOS) {
+                    console.log("iOS detected, initializing touch handling");
+                    // Create a fake touch event to test touch handling
+                    setTimeout(function() {
+                        createSplash(0, 0, (Date.now() - startTime) / 1000.0);
+                    }, 500);
+                }
             }, false);
             
             // Initialize empty splashes array
@@ -155,12 +175,28 @@
             
             // Start animation
             animate();
+            
+            // Log device info for debugging
+            console.log("User Agent: " + navigator.userAgent);
+            console.log("Is iOS: " + isIOS);
+            console.log("Touch points: " + navigator.maxTouchPoints);
         };
         
         function resize() {
             // For iOS, get correct screen dimensions
-            const width = window.innerWidth;
-            const height = window.innerHeight;
+            let width = window.innerWidth;
+            let height = window.innerHeight;
+            
+            // iOS Safari specific handling
+            if (isIOS) {
+                // On iOS, we need to handle orientation changes specially
+                const isLandscape = window.innerWidth > window.innerHeight;
+                if (isLandscape) {
+                    // In landscape mode on iOS, account for the safe areas
+                    width = document.documentElement.clientWidth;
+                    height = document.documentElement.clientHeight;
+                }
+            }
             
             // Apply sizes to canvas with device pixel ratio consideration
             const pixelRatio = window.devicePixelRatio || 1;
@@ -173,6 +209,8 @@
             if (gl) {
                 gl.viewport(0, 0, canvas.width, canvas.height);
             }
+            
+            console.log(`Canvas resized: ${width}x${height}, Pixel ratio: ${pixelRatio}`);
         }
         
         function updateMouse(e) {
@@ -260,6 +298,8 @@
                 strength: strength,
                 particleCount: particleCount
             };
+            
+            console.log("Splash created at:", worldX, worldZ, "time:", now);
         }
         
         let touchActive = false;
@@ -267,33 +307,55 @@
         
         // Handle touch events - Safari compatible versions
         function handleTouchStart(e) {
+            console.log("Touch start event received");
             e.preventDefault();
             touchActive = true;
             
             // Update position and create splash based on touch
             if (e.touches.length > 0) {
-                updateTouch(e.touches[0]);
-                handleClick(e.touches[0]);
+                const touch = e.touches[0];
+                updateTouch(touch);
+                
+                // Current time in seconds
+                const now = (Date.now() - startTime) / 1000.0;
+                
+                // Current camera Z position
+                const camZ = now * 2.0;
+                
+                // Convert touch coordinates to world coordinates
+                const worldPos = screenToWorld(touch.clientX, touch.clientY, camZ);
+                
+                createSplash(worldPos.x, worldPos.z, now);
+                lastTouchTime = now;
             }
         }
         
         function handleTouchMove(e) {
+            console.log("Touch move event");
             e.preventDefault();
             
             // Update position based on touch
-            if (e.touches.length > 0) {
-                updateTouch(e.touches[0]);
+            if (e.touches.length > 0 && touchActive) {
+                const touch = e.touches[0];
+                updateTouch(touch);
                 
                 // Create ripples when dragging with a minimum time interval
                 const now = (Date.now() - startTime) / 1000.0;
                 if (now - lastTouchTime > 0.2) { // Increased interval for Safari
-                    handleClick(e.touches[0]);
+                    // Current camera Z position
+                    const camZ = now * 2.0;
+                    
+                    // Convert touch coordinates to world coordinates
+                    const worldPos = screenToWorld(touch.clientX, touch.clientY, camZ);
+                    
+                    createSplash(worldPos.x, worldPos.z, now);
                     lastTouchTime = now;
                 }
             }
         }
         
         function handleTouchEnd(e) {
+            console.log("Touch end event");
             e.preventDefault();
             touchActive = false;
         }
@@ -301,6 +363,7 @@
         function updateTouch(touch) {
             mouse.x = touch.clientX / window.innerWidth;
             mouse.y = 1.0 - touch.clientY / window.innerHeight;
+            console.log("Touch updated:", mouse.x, mouse.y);
         }
         
         function animate() {
