@@ -342,7 +342,7 @@
             vec3 getSkyColor(vec3 e) {
                 e.y = max(e.y, 0.50);
                 vec3 ret;
-                ret.x = pow(1.0-e.y, 2.0);
+                ret.x = pow(1.0-e.y, 20.0);
                 ret.y = 1.0-e.y;
                 ret.z = 0.6+(1.0-e.y)*0.4;
                 return ret;
@@ -362,7 +362,7 @@
                 if (splashData.w <= 0.0) return false;
                 
                 float clickAge = iTime - splashData.z;
-                if (clickAge > 1.5) return false; // Shorter lifetime
+                if (clickAge > 10.5) return false; // Shorter lifetime
                 
                 vec2 splashCenter = vec2(splashData.x, splashData.y);
                 float strength = props.x;
@@ -370,15 +370,15 @@
                 
                 // Only process particles when ray is close to splash location
                 float distance2D = length(p.xz - splashCenter);
-                if (distance2D > 15.0) return false; // Smaller radius for optimization
+                if (distance2D > 55.0) return false; // Smaller radius for optimization
                 
                 // Check all potential particles based on splash properties
-                for (int i = 0; i < 10; i++) {
+                for (int i = 0; i < 50; i++) {
                     if (i >= particleCount) break;
                     
                     // Particle properties based on its index
                     float particleId = float(i) / float(particleCount);
-                    float angle = particleId * PI * 2.0;
+                    float angle = particleId * PI * 12.0;
                     float radialDistance = (1.0 + hash(vec3(splashData.x, splashData.y, float(i))) * 2.0) * strength;
                     
                     // Particle trajectory - much smaller
