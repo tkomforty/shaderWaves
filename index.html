@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>3D Seascape - Subtle Splashes</title>
     <style>
         * {
@@ -73,9 +75,17 @@
             gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
             
             // Add event listeners
-            window.addEventListener('resize', resize);
-            window.addEventListener('mousemove', updateMouse);
-            window.addEventListener('mousedown', handleClick);
+// Add event listeners for both mouse and touch
+window.addEventListener('resize', resize);
+
+// Mouse events
+window.addEventListener('mousemove', updateMouse);
+window.addEventListener('mousedown', handleClick);
+
+// Touch events for mobile
+canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
             
             // Initialize empty splashes array
             for (let i = 0; i < MAX_SPLASHES; i++) {
@@ -104,35 +114,42 @@
         }
         
         // Convert screen coordinates to world position
-        function screenToWorld(screenX, screenY, camZ) {
-            // Normalized screen coordinates
-            const aspectRatio = canvas.width / canvas.height;
-            const x = ((screenX / canvas.width) * 2.0 - 1.0) * aspectRatio;
-            const y = ((canvas.height - screenY) / canvas.height) * 2.0 - 1.0;
-            
-            // Camera parameters
-            const cameraHeight = 5.0;
-            
-            // Create ray direction (with fixed camera angle)
-            let dirX = x;
-            let dirY = -2.0; // Forward direction
-            let dirZ = y;
-            
-            // Normalize the direction
-            const length = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
-            const normDirX = dirX / length;
-            const normDirY = dirY / length;
-            const normDirZ = dirZ / length;
-            
-            // Intersect with y=0 plane (ocean surface)
-            const t = -cameraHeight / normDirZ;
-            
-            // Calculate intersection point in world space
-            const worldX = 0 + normDirX * t;
-            const worldZ = camZ + normDirY * t;
-            
-            return { x: worldX, z: worldZ };
-        }
+// Convert screen coordinates to world position
+function screenToWorld(screenX, screenY, camZ) {
+    // Handle touch events that pass the whole event
+    if (screenX.clientX !== undefined) {
+        screenY = screenX.clientY;
+        screenX = screenX.clientX;
+    }
+    
+    // Rest of the function remains the same
+    const aspectRatio = canvas.width / canvas.height;
+    const x = ((screenX / canvas.width) * 2.0 - 1.0) * aspectRatio;
+    const y = ((canvas.height - screenY) / canvas.height) * 2.0 - 1.0;
+    
+    // Camera parameters
+    const cameraHeight = 5.0;
+    
+    // Create ray direction (with fixed camera angle)
+    let dirX = x;
+    let dirY = -2.0; // Forward direction
+    let dirZ = y;
+    
+    // Normalize the direction
+    const length = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
+    const normDirX = dirX / length;
+    const normDirY = dirY / length;
+    const normDirZ = dirZ / length;
+    
+    // Intersect with y=0 plane (ocean surface)
+    const t = -cameraHeight / normDirZ;
+    
+    // Calculate intersection point in world space
+    const worldX = 0 + normDirX * t;
+    const worldZ = camZ + normDirY * t;
+    
+    return { x: worldX, z: worldZ };
+}
         
         function handleClick(e) {
             // Current time in seconds
@@ -173,6 +190,48 @@
                 particleCount: particleCount
             };
         }
+      
+      
+      let touchActive = false;
+let lastTouchTime = 0;
+
+// Handle touch events
+function handleTouchStart(e) {
+    e.preventDefault();
+    touchActive = true;
+    
+    // Update mouse position based on touch
+    if (e.touches.length > 0) {
+        updateTouch(e.touches[0]);
+        handleClick(e.touches[0]);
+    }
+}
+
+function handleTouchMove(e) {
+    e.preventDefault();
+    
+    // Update mouse position based on touch
+    if (e.touches.length > 0) {
+        updateTouch(e.touches[0]);
+        
+        // Create ripples when dragging with a minimum time interval
+        const now = (Date.now() - startTime) / 1000.0;
+        if (now - lastTouchTime > 0.1) {
+            handleClick(e.touches[0]);
+            lastTouchTime = now;
+        }
+    }
+}
+
+function handleTouchEnd(e) {
+    e.preventDefault();
+    touchActive = false;
+}
+
+function updateTouch(touch) {
+    mouse.x = touch.clientX / canvas.width;
+    mouse.y = 1.0 - touch.clientY / canvas.height;
+}
         
         function animate() {
             // Get current time in seconds
