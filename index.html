@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>3D Seascape - Subtle Splashes</title>
     <style>
         * {
@@ -48,7 +48,13 @@
             
             // Set canvas to fullscreen
             resize();
-            
+             const contextAttributes = {
+        alpha: false,
+        antialias: false,
+        preserveDrawingBuffer: false,
+        stencil: false,
+        depth: false
+    };
             // Get WebGL context
             gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
             if (!gl) {
@@ -76,16 +82,33 @@
             
             // Add event listeners
 // Add event listeners for both mouse and touch
-window.addEventListener('resize', resize);
+// Add event listeners
+window.addEventListener('resize', resize, false);
 
-// Mouse events
-window.addEventListener('mousemove', updateMouse);
-window.addEventListener('mousedown', handleClick);
+// Touch events with options specifically for iOS
+// iOS requires user interaction before media can start
+window.addEventListener('touchstart', function initAudio() {
+    // Create and play a silent sound
+    const audio = document.createElement('audio');
+    audio.src = 'data:audio/mp3;base64,//PizAAAAAAAAEFJTkYAAAAIAAAAAQD/LxoAAAAA';
+    audio.play().then(() => {
+        window.removeEventListener('touchstart', initAudio);
+    }).catch(e => {
+        // Silent fail - not crucial
+    });
+}, {once: true});
+canvas.addEventListener('touchmove', handleTouchMove, {passive: false, capture: false});
+canvas.addEventListener('touchend', handleTouchEnd, {passive: false, capture: false});
+canvas.addEventListener('touchcancel', handleTouchEnd, {passive: false, capture: false});
 
-// Touch events for mobile
-canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+// Mouse events still work on desktop
+window.addEventListener('mousemove', updateMouse, false);
+window.addEventListener('mousedown', handleClick, false);
+          // Make sure window is fully loaded
+window.addEventListener('load', function() {
+    // Force a resize after everything loads
+    setTimeout(resize, 100);
+}, false);
             
             // Initialize empty splashes array
             for (let i = 0; i < MAX_SPLASHES; i++) {
